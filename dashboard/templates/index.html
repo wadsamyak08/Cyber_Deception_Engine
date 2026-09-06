@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>AI Cyber Deception Engine</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background:#0b1220; color:#dbe4f0; font-family:'Segoe UI',Arial,sans-serif; padding:24px; }
+  .toprow { display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; }
+  h1 { font-size:22px; color:#4ade80; letter-spacing:.5px; }
+  .live { display:inline-block; width:10px; height:10px; border-radius:50%; background:#4ade80; margin-right:6px; animation:pulse 1.5s infinite; }
+  @keyframes pulse { 50% { opacity:.3; } }
+  .sub { color:#7d8ca3; font-size:13px; margin:4px 0 20px; }
+  .btn { background:#7f1d1d; color:#fff; border:1px solid #b91c1c; padding:10px 18px; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; }
+  .btn:hover { background:#991b1b; }
+  .btn:disabled { opacity:.45; cursor:wait; }
+  .console { display:none; background:#050a14; border:1px solid #1e2c47; border-radius:10px; padding:12px;
+             font-family:Consolas,monospace; font-size:12px; color:#7ee787; height:170px;
+             overflow-y:auto; white-space:pre-wrap; margin-bottom:20px; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:14px; margin-bottom:22px; }
+  .card { background:#111a2c; border:1px solid #1e2c47; border-radius:10px; padding:16px; }
+  .card .num { font-size:26px; font-weight:700; color:#fff; }
+  .card .lbl { font-size:12px; color:#7d8ca3; margin-top:4px; text-transform:uppercase; letter-spacing:1px; }
+  .card.red .num { color:#f87171; } .card.orange .num { color:#fbbf24; } .card.blue .num { color:#60a5fa; }
+  h2 { font-size:15px; color:#9fb3d1; margin:18px 0 8px; text-transform:uppercase; letter-spacing:1px; }
+  table { width:100%; border-collapse:collapse; background:#111a2c; border-radius:10px; overflow:hidden; font-size:13px; }
+  th { background:#16213a; text-align:left; padding:10px 12px; color:#8aa0c2; font-weight:600; }
+  td { padding:8px 12px; border-top:1px solid #1a2742; color:#c7d3e8; }
+  tr:hover td { background:#15203a; }
+  .badge { padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700; }
+  .sev3 { background:#3a2c10; color:#fbbf24; } .sev4 { background:#3a1d10; color:#fb923c; } .sev5 { background:#3a1016; color:#f87171; }
+  .chip { display:inline-block; background:#3a1016; color:#f87171; border:1px solid #57182a; padding:2px 10px; border-radius:14px; margin:2px; font-size:12px; }
+  .empty { color:#5b6b85; font-style:italic; padding:10px 12px; }
+  footer { margin-top:26px; color:#54617a; font-size:12px; }
+</style>
+</head>
+<body>
+  <div class="toprow">
+    <div>
+      <h1><span class="live"></span>AI Cyber Deception Engine &mdash; Live Dashboard</h1>
+      <div class="sub">Decoy services luring attackers &middot; AI classifying every interaction &middot; canary tokens trip silent alarms</div>
+    </div>
+    <button class="btn" id="demoBtn">&#9876; SIMULATE ATTACK</button>
+  </div>
+
+  <div class="console" id="demoConsole"></div>
+
+  <div class="cards">
+    <div class="card blue"><div class="num" id="sEvents">0</div><div class="lbl">Events captured</div></div>
+    <div class="card"><div class="num" id="sAlerts">0</div><div class="lbl">Alerts raised</div></div>
+    <div class="card red"><div class="num" id="sCrit">0</div><div class="lbl">High / critical</div></div>
+    <div class="card orange"><div class="num" id="sBlock">0</div><div class="lbl">Blocked sources</div></div>
+  </div>
+
+  <h2>Active Alerts</h2>
+  <div id="blocklist"></div>
+  <table>
+    <thead><tr><th>Time</th><th>Source</th><th>Decoy</th><th>Severity</th><th>Label</th><th>Reason</th></tr></thead>
+    <tbody id="alerts"><tr><td colspan="6" class="empty">Press SIMULATE ATTACK to begin&hellip;</td></tr></tbody>
+  </table>
+
+  <h2>Recent Decoy Events</h2>
+  <table>
+    <thead><tr><th>Time</th><th>Source</th><th>Decoy</th><th>Type</th><th>Detail</th></tr></thead>
+    <tbody id="events"><tr><td colspan="5" class="empty">No events yet.</td></tr></tbody>
+  </table>
+
+  <footer>Educational project &mdash; decoys are simulated services; auto-blocking is demonstration only.</footer>
+
+<script>
+function esc(s){const d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function badge(sev){return '<span class="badge sev'+sev+'">SEV '+sev+'</span>';}
+function detail(e){
+  const d=e.data||{};let bits=[];
+  for(const k of ['username','password','command','path','note']){if(d[k])bits.push(k+': '+d[k]);}
+  if(!bits.length&&e.raw)bits.push(e.raw);
+  return esc(bits.join('  ').slice(0,110));
+}
+const demoBtn=document.getElementById('demoBtn');
+const demoConsole=document.getElementById('demoConsole');
+let demoStarted=false;
+
+demoBtn.addEventListener('click',async()=>{
+  demoBtn.disabled=true;
+  demoConsole.style.display='block';
+  demoConsole.textContent='Launching simulated attack campaign...';
+  try{
+    const r=await fetch('/api/run-demo',{method:'POST'});
+    if(!r.ok)throw new Error('server answered '+r.status);
+    demoStarted=true;
+  }catch(err){
+    demoConsole.textContent='ERROR: could not start the demo ('+err.message+').\n\n'
+      +'This usually means this window shows an OLD dashboard.\n'
+      +'Fix: close ALL terminals and this window, then restart desktop_app.py.';
+    demoBtn.disabled=false;
+  }
+});
+
+setInterval(async()=>{
+  try{
+    const r=await fetch('/api/demo-log').then(x=>x.json());
+    if(r.log&&r.log.length){
+      demoConsole.style.display='block';
+      demoConsole.textContent=r.log.join('\n');
+      demoConsole.scrollTop=demoConsole.scrollHeight;
+    }
+    if(demoStarted&&!r.running){demoStarted=false;demoBtn.disabled=false;}
+  }catch(e){}
+},1000);
+
+async function refresh(){
+  try{
+    const [st,al,ev,bl]=await Promise.all([
+      fetch('/api/stats').then(r=>r.json()),
+      fetch('/api/alerts').then(r=>r.json()),
+      fetch('/api/events').then(r=>r.json()),
+      fetch('/api/blocklist').then(r=>r.json())
+    ]);
+    sEvents.textContent=st.total_events; sAlerts.textContent=st.total_alerts;
+    sCrit.textContent=st.critical_alerts; sBlock.textContent=st.blocked_ips;
+    document.getElementById('alerts').innerHTML = al.length ? al.map(a=>
+      '<tr><td>'+esc(a.timestamp)+'</td><td>'+esc(a.source_ip)+'</td><td>'+esc(a.decoy)+
+      '</td><td>'+badge(a.severity)+'</td><td>'+esc(a.label)+'</td><td>'+esc(a.reason)+
+      (a.blocked?' <b style="color:#f87171">[BLOCKED]</b>':'')+'</td></tr>').join('')
+      : '<tr><td colspan="6" class="empty">No alerts yet.</td></tr>';
+    document.getElementById('events').innerHTML = ev.length ? ev.slice(0,25).map(e=>
+      '<tr><td>'+esc(e.timestamp)+'</td><td>'+esc(e.source_ip)+'</td><td>'+esc(e.decoy)+
+      '</td><td>'+esc(e.event_type)+'</td><td>'+detail(e)+'</td></tr>').join('')
+      : '<tr><td colspan="5" class="empty">No events yet.</td></tr>';
+    document.getElementById('blocklist').innerHTML = bl.map(b=>
+      '<span class="chip">&#9940; '+esc(b.ip)+'</span>').join('');
+  }catch(err){ console.error(err); }
+}
+refresh(); setInterval(refresh, 3000);
+</script>
+</body>
+</html>
